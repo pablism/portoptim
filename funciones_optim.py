@@ -128,6 +128,7 @@ class backt :
         wp.append(w)
         rp.append(0)
         for i,d in enumerate(dts):
+            
             if rebal:
                 if d in rbw.index:
                     wp.append(rbw.loc[d,:].values)
@@ -135,7 +136,7 @@ class backt :
                     wp.append(np.multiply(wp[i],r.loc[d,:].add(1))/(np.dot(wp[i],r.loc[d,:])+1))
             else:
                 wp.append(np.multiply(wp[i],r.loc[d,:].add(1))/(np.dot(wp[i],r.loc[d,:])+1))
-            rp.append(np.dot(wp[i],r.loc[d,:]))
+            rp.append(np.dot(wp[-1],r.loc[d,:]))
 
         wp = pd.DataFrame(wp[1:],index=dts)
         rp = pd.Series(rp[1:],index=dts)
@@ -157,7 +158,7 @@ class backt :
     def pmetrics(ports,cash,bench=0):
         ret = ports.add(1).apply(np.log).sum().apply(np.exp).subtract(1).mul(100)
         retm = ports.add(1).apply(np.log).resample('M').sum().apply(np.exp).subtract(1).mean().mul(100)
-        volm = ports.add(1).apply(np.log).resample('W').sum().apply(np.exp).subtract(1).std().mul(np.sqrt(4)).mul(100)
+        volm = ports.add(1).apply(np.log).resample('M').sum().apply(np.exp).subtract(1).std().mul(np.sqrt(12)).mul(100)
         # alpha = ret - ports.loc[:,bench].add(1).add(1).apply(np.log).resample('Q').sum().apply(np.exp).subtract(1).mean()
         # alphaq = retq - alpha.resample('Q').mean()
         sharpe = (retm - cash.loc[ports.index].add(1).apply(np.log).resample('M').sum().apply(np.exp).subtract(1).mean()*100)/volm
