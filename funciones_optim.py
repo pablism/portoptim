@@ -6,8 +6,36 @@ from itertools import product
 from numpy.linalg import cholesky
 from mystuff import bdh
 import datetime
+from numpy.linalg import cholesky, inv
+import plotly.graph_objs as go
 
 #optim
+def mvo(r,covar,vx,x0,bnds):
+    rr =r.values
+    def w(x):
+        return np.sum(x[:4])-1
+    def varp(x):
+        return np.dot(np.matmul(x,covar),x)-vx**2
+    def rfun(x):
+        return -np.dot(x,rr)
+    cons  = [{'type': 'eq', 'fun': varp},{'type': 'eq', 'fun': w}]
+    res = minimize(rfun,x0,bounds=bnds,constraints=cons)
+
+    return  -rfun(res.x), pd.Series(res.x,index=r.index)
+
+
+
+def BLopt(r,sigma,q,c,tau=0.025):
+    pick = pick = np.eye(len(r))
+    PEP = np.matmul(np.matmul(pick,sigma),pick.T)
+    v = r + np.diag(sigma**(1/2))*q # r + 2(pr-0.5)*vol
+    omega = (c@PEP)@c
+    mu_bl = r + tau*np.matmul(np.matmul(sigma*pick.T,inv(tau*PEP+omega)),v-np.matmul(pick,r))
+    sigma_bl = (1+tau)*sigma - tau**2*np.matmul(np.matmul(np.matmul(sigma,pick.T),inv(tau*PEP+omega)),np.matmul(pick,sigma))
+
+    return pd.Series(mu_bl,index=r.index),sigma_bl,v,omega
+
+
 
 def port_ret(w,r):
     return -np.array(r).dot(w)
@@ -181,3 +209,88 @@ class backt :
             'sortino':sortino
             },index=ports.columns)
         return df.transpose()
+    
+class graphs:
+
+    def sct(df,title=''):
+        cl = ['black','black','darkblue','darkblue','gray','gray']
+        ds = ['solid','dot','solid','dot','solid','dot']
+        traces=[]
+        for k,v in {i:[c,d] for i,c,d in zip(df.columns,cl,ds)}.items():
+            y = df.loc[:,k]
+            x = y.index
+            traces.append(go.Scatter(x=x,y=y,mode='lines',line={'color':v[0],'width':1,'dash':v[1]},name=k))
+    
+
+        layout = go.Layout(width=550,height=400,
+                        yaxis={'tickfont':{'size':9}},
+                        xaxis={'tickfont':{'size':9}},
+                        margin=dict(l=50,r=50,b=50,t=50),
+                        xaxis_showgrid=True, yaxis_showgrid=True,
+                        showlegend=True,
+                        legend={'x':0.05,'y':-0.07,'orientation':'h'},
+                        template='simple_white',
+                        title={'text':title,'xanchor':'left','font':{'size':12}},
+                        )
+        fig = go.Figure(data=traces, layout=layout)
+        fig.show()
+
+    def area(df,title='',grouptwo=['']):
+        cl = ['rgba(150,120,120,0.7)','rgba(160,160,160,0.7)','rgba(200,200,220,0.7)','rgba(210,230,210,0.7)','rgba(150,185,185,0.6)']
+
+
+        traces=[]
+        for k,v in {i:[c] for i,c in zip(df.columns,cl)}.items():
+            
+            y = df.loc[:,k]
+            x = y.index
+    
+            if k in grouptwo:
+                traces.append(go.Scatter(x=x,y=y,mode='lines',line={'color':'black','width':0.8},name=k))
+            else:
+                traces.append(go.Scatter(x=x,y=y,mode='lines',line={'color':v[0],'width':1},name=k,stackgroup='one'))
+    
+
+        layout = go.Layout(width=550,height=400,
+                        yaxis={'tickfont':{'size':9}},
+                        xaxis={'tickfont':{'size':9}},
+                        yaxis2={'overlaying':'y','side':'right','tickfont':{'size':9}},
+                        margin=dict(l=50,r=50,b=50,t=50),
+                        xaxis_showgrid=True, yaxis_showgrid=True,
+                        showlegend=True,
+                        legend={'x':0.05,'y':-0.07,'orientation':'h'},
+                        template='simple_white',
+                        title={'text':title,'xanchor':'left','font':{'size':12}},
+                        )
+        fig = go.Figure(data=traces, layout=layout)
+        fig.show()
+
+    def area_2(df,title='',nofill=['']):
+        cl = ['rgba(150,120,120,0.7)','rgba(160,160,160,0.7)','rgba(200,200,220,0.7)','rgba(210,230,210,0.7)','rgba(150,185,185,0.6)']
+
+
+        traces=[]
+        for k,v in {i:[c] for i,c in zip(df.columns,cl)}.items():
+            
+            y = df.loc[:,k]
+            x = y.index
+    
+            if k in nofill:
+                traces.append(go.Scatter(x=x,y=y,mode='lines',line={'color':'black','width':0.8},name=k))
+            else:
+                traces.append(go.Scatter(x=x,y=y,mode='lines',fillcolor=v[0],line={'color':v[0],'width':1},name=k,fill='tozeroy'))
+    
+
+        layout = go.Layout(width=550,height=400,
+                        yaxis={'tickfont':{'size':9}},
+                        xaxis={'tickfont':{'size':9}},
+                        yaxis2={'overlaying':'y','side':'right','tickfont':{'size':9}},
+                        margin=dict(l=50,r=50,b=50,t=50),
+                        xaxis_showgrid=True, yaxis_showgrid=True,
+                        showlegend=True,
+                        legend={'x':0.05,'y':-0.07,'orientation':'h'},
+                        template='simple_white',
+                        title={'text':title,'xanchor':'left','font':{'size':12}},
+                        )
+        fig = go.Figure(data=traces, layout=layout)
+        fig.show()
